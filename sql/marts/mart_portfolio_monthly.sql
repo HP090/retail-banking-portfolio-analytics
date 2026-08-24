@@ -101,8 +101,11 @@ SELECT
     (b.accounts_with_known_balance * 1.0 / b.total_accounts) * 100
         AS pct_accounts_with_known_balance,
     COALESCE(n.newly_opened_accounts, 0) AS newly_opened_accounts,
-    COALESCE(l.loan_principal_originated, 0) AS loan_principal_originated
+    COALESCE(l.loan_principal_originated, 0) AS loan_principal_originated,
+    g.positive_balance_mom_growth_pct,
+    c.top_10pct_positive_balance_concentration
 FROM base b
 LEFT JOIN new_accounts n ON b.month_end = n.month_end
 LEFT JOIN new_loans l    ON b.month_end = l.month_end
-LEFT JOIN growth g ON b.month_end = g.month_end;
+LEFT JOIN growth g ON b.month_end = g.month_end
+LEFT JOIN concentration c on b.month_end = c.month_end;
