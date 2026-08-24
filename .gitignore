@@ -1,0 +1,35 @@
+# IDE / macOS
+.idea/
+.DS_Store
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Generated artifacts
+artifacts/
+logs/
+
+# Raw data
+data/raw/
+
+# Generated databases / outputs
+data/warehouse/
+data/serving/
+
+# Database files
+*.duckdb
+*.duckdb.wal
+*.db
+
+# Jupyter
+.ipynb_checkpoints/

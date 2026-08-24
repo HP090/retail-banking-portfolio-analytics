@@ -1,0 +1,127 @@
+# conf/source_codes.yaml
+
+# Raw values remain unchanged in the raw schema.
+# These rules and translations are applied during staging.
+
+missing_values:
+  treat_sql_null_as_missing: true
+
+  sentinels:
+    - ""
+    - " "
+    - "?"
+
+translations:
+
+  transaction_direction:
+    "PRIJEM": "credit"
+    "VYDAJ": "debit"
+    "VYBER": "debit"
+
+  transaction_operation:
+    "VKLAD": "cash_deposit"
+    "PREVOD Z UCTU": "incoming_bank_transfer"
+    "VYBER": "cash_withdrawal"
+    "VYBER KARTOU": "card_withdrawal"
+    "PREVOD NA UCET": "outgoing_bank_transfer"
+
+  transaction_purpose:
+    "POJISTNE": "insurance_payment"
+    "SLUZBY": "statement_fee"
+    "UROK": "interest_credited"
+    "SANKC. UROK": "sanction_interest"
+    "SIPO": "household_payment"
+    "DUCHOD": "pension_inflow"
+    "UVER": "loan_payment"
+
+  order_purpose:
+    "POJISTNE": "insurance_payment"
+    "SIPO": "household_payment"
+    "LEASING": "leasing_payment"
+    "UVER": "loan_payment"
+
+  statement_frequency:
+    "POPLATEK MESICNE": "monthly"
+    "POPLATEK TYDNE": "weekly"
+    "POPLATEK PO OBRATU": "after_transaction"
+
+  disposition_types:
+    "OWNER": "owner"
+    "DISPONENT": "authorized_user"
+
+  card_types:
+    "junior": "Junior"
+    "classic": "Classic"
+    "gold": "Gold"
+
+analytical_mappings:
+
+  loan_statuses:
+    "A":
+      label: "Completed without recorded repayment problems"
+      group: "completed"
+      completed_problem: false
+      active_debt: null
+
+    "B":
+      label: "Completed but not successfully repaid"
+      group: "completed"
+      completed_problem: true
+      active_debt: null
+
+    "C":
+      label: "Active and satisfactory at dataset endpoint"
+      group: "active"
+      completed_problem: null
+      active_debt: false
+
+    "D":
+      label: "Active and in debt at dataset endpoint"
+      group: "active"
+      completed_problem: null
+      active_debt: true
+
+  qualifying_account_activity:
+    description: >
+      Indicates observable evidence of account use or engagement.
+      It does not prove that the transaction was personally initiated
+      by the account owner.
+
+    include_directions:
+      - "credit"
+      - "debit"
+
+    include_operations:
+      - "cash_deposit"
+      - "incoming_bank_transfer"
+      - "cash_withdrawal"
+      - "card_withdrawal"
+      - "outgoing_bank_transfer"
+
+    exclude_purposes:
+      - "statement_fee"
+      - "interest_credited"
+      - "sanction_interest"
+
+    require_recognized_operation: true
+    unmapped_code_policy: "error"
+
+  external_credit_inflow:
+    description: >
+      Identifies eligible external credits entering an account.
+      It is not bank revenue, profit or a complete liquidity measure.
+
+    required_direction: "credit"
+    require_positive_amount: true
+
+    include_operations:
+      - "cash_deposit"
+      - "incoming_bank_transfer"
+
+    exclude_purposes:
+      - "statement_fee"
+      - "interest_credited"
+      - "sanction_interest"
+
+    require_recognized_operation: true
+    unmapped_code_policy: "error"

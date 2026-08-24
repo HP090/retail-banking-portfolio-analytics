@@ -1,0 +1,50 @@
+# conf/base.yaml
+
+# 1. Project infrastructure paths
+paths:
+  raw_data_dir: "data/raw"
+  full_duckdb_path: "data/warehouse/banking.duckdb"
+  dashboard_duckdb_path: "data/serving/dashboard.duckdb"
+
+# 2. Context and localisation
+localization:
+  currency: "CZK"
+  timezone: "Europe/Prague"
+
+# 3. Temporal anchors
+# Validate these boundaries against the raw data during the source audit.
+temporal:
+  analysis_start_date: "1993-01-01"
+  analysis_end_date: "1998-12-31"
+  snapshot_date: "1998-12-31"
+
+# 4. Account engagement rules
+cohorts:
+  grain: "month"
+  definition: "first month with at least one qualifying account-activity transaction"
+
+rfm:
+  # The lookback applies to frequency and monetary calculations.
+  # Recency uses all qualifying activity available up to the snapshot.
+  lookback_months: 12
+  dormant_threshold_days: 90
+  lapsed_threshold_days: 180
+  high_value_percentile: 0.90
+
+# 5. Account-review triggers
+account_review:
+  material_balance_decline_threshold: 0.50
+  material_balance_decline_horizon_months: 6
+  negative_flow_trigger_months: 3
+
+# 6. Portfolio metrics
+portfolio:
+  balance_concentration_top_fraction: 0.10
+
+# 7. Statistical forecasting
+forecasting:
+  horizon_months: 1
+
+# 8. Pipeline reproducibility
+reproducibility:
+  seed: 42

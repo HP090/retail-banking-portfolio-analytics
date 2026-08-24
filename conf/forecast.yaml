@@ -1,0 +1,145 @@
+# conf/forecast.yaml
+
+# 1. Forecast target
+target:
+  variable: "total_external_credit_inflows"
+  grain: "month"
+  description: >
+    Aggregate eligible external credits entering accounts during the month,
+    calculated using the is_external_credit_inflow transaction flag.
+    This is not bank revenue, profit or a complete liquidity measure.
+
+# 2. Evaluation periods
+periods:
+  development:
+    start: "1997-01-01"
+    end: "1997-12-31"
+
+  final_holdout:
+    start: "1998-01-01"
+    end: "1998-12-31"
+
+  final_planning_estimate:
+    forecast_month: "1999-01-01"
+    training_data_end: "1998-12-31"
+
+# 3. Rolling forecast protocol
+rolling_protocol:
+  horizon_months: 1
+  training_window: "expanding"
+
+  use_actuals_available_before_prediction_month: true
+
+  description: >
+    Produce one-month-ahead forecasts. Each forecast may use only observations
+    strictly earlier than its prediction month. During the 1998 holdout,
+    actual observations from earlier 1998 months may be used when forecasting
+    later 1998 months.
+
+# 4. Candidate methods
+candidate_methods:
+
+  - id: "moving_average_3m"
+    name: "3-Month Moving Average"
+    status: "mandatory"
+    minimum_training_history_months: 3
+
+    parameters:
+      window_months: 3
+
+  - id: "seasonal_naive_12m"
+    name: "Seasonal Naive: Same Month in Previous Year"
+    status: "mandatory"
+    minimum_training_history_months: 12
+
+    parameters:
+      seasonal_lag_months: 12
+
+  - id: "exponential_smoothing_12m"
+    name: "Exponential Smoothing with 12-Month Seasonality"
+    status: "optional_if_ahead_of_schedule"
+    minimum_training_history_months: 24
+
+    parameters:
+      trend: "additive"
+      seasonal: "additive"
+      seasonal_periods: 12
+      damped_trend: false
+      optimize_parameters: true
+
+# 5. Evaluation metrics
+evaluation:
+  metrics:
+
+    mae:
+      name: "Mean Absolute Error"
+      formula: "sum(abs(actual - forecast)) / n"
+      interpretation: >
+        Average absolute forecast error in CZK. Lower values are better.
+
+    wape:
+      name: "Weighted Absolute Percentage Error"
+      formula: "sum(abs(actual - forecast)) / sum(abs(actual))"
+      interpretation: >
+        Total absolute forecast error as a proportion of total actual external
+        credit inflows. Lower values are better.
+
+    signed_bias:
+      name: "Signed Bias"
+      formula: "sum(forecast - actual) / n"
+      interpretation: >
+        Positive bias means average overforecasting. Negative bias means
+        average underforecasting. A value close to zero indicates little
+        systematic directional error.
+
+  wape_zero_denominator_policy: "error"
+
+# 6. Method selection
+method_selection:
+  primary_metric: "wape"
+  objective: "minimize"
+
+  tie_breaking:
+    secondary_metric: "mae"
+    final_priority:
+      - "moving_average_3m"
+      - "seasonal_naive_12m"
+      - "exponential_smoothing_12m"
+
+  rule: >
+    Run rolling one-month-ahead forecasts across the 1997 development period.
+    Select the method with the lowest development WAPE. If methods have equal
+    WAPE, select the method with the lower MAE. If they remain tied, use the
+    stated final-priority order. Freeze the selected method and all its
+    settings before examining final holdout performance.
+
+# 7. Final holdout evaluation
+holdout_evaluation:
+  evaluate_selected_method: true
+  compare_against_mandatory_baselines: true
+
+  mandatory_baselines:
+    - "moving_average_3m"
+    - "seasonal_naive_12m"
+
+  report_metrics:
+    - "mae"
+    - "wape"
+    - "signed_bias"
+
+  prohibit_method_reselection: true
+  prohibit_parameter_tuning: true
+
+# 8. Final January 1999 estimate
+final_estimate:
+  method: "selected_development_method"
+  refit_or_update_through: "1998-12-31"
+  forecast_month: "1999-01-01"
+
+  label: "Unevaluated January 1999 planning estimate"
+
+  description: >
+    After holdout evaluation is complete, refit or update the frozen selected
+    method using all observations available through December 1998. Produce a
+    one-month-ahead estimate for January 1999. This estimate cannot be evaluated
+    because January 1999 actual external credit inflow is unavailable.
