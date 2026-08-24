@@ -41,6 +41,20 @@ new_loans AS (
         SUM(loan_amount) AS loan_principal_originated
     FROM core.fct_loans
     GROUP BY last_day(DATE_TRUNC('month', origination_date))
+),
+
+growth AS (
+    SELECT
+        month_end,
+        CASE
+            WHEN LAG(positive_account_balances) OVER (ORDER BY month_end) IS NULL
+            OR LAG(positive_account_balances) OVER (ORDER BY month_end) = 0
+                THEN NULL
+            ELSE
+                (positive_account_balances - LAG(positive_account_balances) OVER (ORDER BY month_end))
+                / LAG(positive_account_balances) OVER (ORDER BY month_end)
+        END AS positive_balance_mom_growth_pct
+    FROM base
 )
 
 SELECT
@@ -51,5 +65,5 @@ SELECT
     COALESCE(l.loan_principal_originated, 0) AS loan_principal_originated
 FROM base b
 LEFT JOIN new_accounts n ON b.month_end = n.month_end
-LEFT JOIN new_loans l    ON b.month_end = l.month_end;
-
+LEFT JOIN new_loans l    ON b.month_end = l.month_end
+LEFT JOIN growth g ON b.month_end = g.month_end;
