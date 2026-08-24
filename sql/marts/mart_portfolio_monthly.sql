@@ -1,10 +1,9 @@
 CREATE OR REPLACE TABLE marts.mart_portfolio_monthly AS
 
-WITH base AS (
+WITH
+base AS (
     SELECT
         month_end,
-
-        -- Step 1: Base aggregates
         SUM(total_ledger_credits)        AS total_ledger_credits,
         SUM(external_credit_inflows)     AS external_credit_inflows,
         SUM(total_ledger_debits)         AS total_ledger_debits,
@@ -17,38 +16,40 @@ WITH base AS (
         COUNT(*) FILTER (WHERE has_loan_at_month_end)         AS accounts_with_loan,
         COUNT(*)                                              AS total_accounts,
 
-        -- Step 2: Positive balances & overdrawn exposure
         SUM(GREATEST(month_end_balance, 0))
             FILTER (WHERE balance_known_as_of_month_end) AS positive_account_balances,
         SUM(ABS(LEAST(month_end_balance, 0)))
-            FILTER (WHERE balance_known_as_of_month_end) AS overdrawn_exposure
+            FILTER (WHERE balance_known_as_of_month_end) AS overdrawn_exposure,
 
+        MEDIAN(month_end_balance)
+            FILTER (WHERE balance_known_as_of_month_end) AS median_observed_month_end_balance
     FROM core.fct_account_monthly_snapshot
     GROUP BY month_end
+),
+
+new_accounts AS (
+    SELECT
+        last_day(DATE_TRUNC('month', opened_date)) AS month_end,
+        COUNT(*) AS newly_opened_accounts
+    FROM core.dim_account
+    GROUP BY last_day(DATE_TRUNC('month', opened_date))
+),
+
+new_loans AS (
+    SELECT
+        last_day(DATE_TRUNC('month', origination_date)) AS month_end,
+        SUM(loan_amount) AS loan_principal_originated
+    FROM core.fct_loans
+    GROUP BY last_day(DATE_TRUNC('month', origination_date))
 )
 
 SELECT
-    *,
-    -- Step 3: Coverage
-    (accounts_with_known_balance * 1.0 / total_accounts) * 100
-        AS pct_accounts_with_known_balance
-FROM base
-
-SELECT
-    last_day(DATE_TRUNC('month', opened_date)) AS month_end,
-    COUNT(*) AS newly_opened_accounts
-FROM core.dim_account
-GROUP BY last_day(DATE_TRUNC('month', opened_date))
-
-SELECT
-    month_end,
-    MEDIAN(month_end_balance)  FILTER (WHERE balance_known_as_of_month_end) AS Median_Observed_Month_End_Balance
-FROM core.fct_account_monthly_snapshot
-GROUP BY month_end
-
-SELECT
-    last_day(DATE_TRUNC('month', origination_date)) AS month_end,
-    SUM(loan_amount) AS loan_principal_originated
-FROM core.fct_loans
-GROUP BY last_day(DATE_TRUNC('month', origination_date))
+    b.*,
+    (b.accounts_with_known_balance * 1.0 / b.total_accounts) * 100
+        AS pct_accounts_with_known_balance,
+    COALESCE(n.newly_opened_accounts, 0) AS newly_opened_accounts,
+    COALESCE(l.loan_principal_originated, 0) AS loan_principal_originated
+FROM base b
+LEFT JOIN new_accounts n ON b.month_end = n.month_end
+LEFT JOIN new_loans l    ON b.month_end = l.month_end;
 
