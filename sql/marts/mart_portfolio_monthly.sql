@@ -55,6 +55,45 @@ growth AS (
                 / LAG(positive_account_balances) OVER (ORDER BY month_end)
         END AS positive_balance_mom_growth_pct
     FROM base
+),
+
+
+-- The top 10 percent
+-- Eligible accounts only (known + positive balance)
+eligible AS (
+    SELECT
+        month_end,
+        account_id,
+        month_end_balance AS positive_balance
+    FROM core.fct_account_monthly_snapshot
+    WHERE balance_known_as_of_month_end = TRUE
+      AND month_end_balance > 0
+),
+
+--  Rank them inside each month
+ranked AS (
+    SELECT
+        month_end,
+        account_id,
+        positive_balance,
+        ROW_NUMBER() OVER (
+            PARTITION BY month_end
+            ORDER BY positive_balance DESC, account_id
+        ) AS rn,
+        COUNT(*) OVER (PARTITION BY month_end) AS eligible_count
+    FROM eligible
+),
+
+--  Keep only the top 10% and calculate concentration
+concentration AS (
+    SELECT
+        month_end,
+        SUM(positive_balance)
+            FILTER (WHERE rn <= CEIL(eligible_count * 0.10))   -- top 10%
+            / SUM(positive_balance)                            -- all eligible
+            AS top_10pct_positive_balance_concentration
+    FROM ranked
+    GROUP BY month_end
 )
 
 SELECT
