@@ -1,9 +1,11 @@
-CREATE OR REPLACE TABLE marts.mart_portfolio_monthly AS
+CREATE OR REPLACE TABLE marts.mart_portfolio_monthly_district AS
 
 WITH
 base AS (
     SELECT
         month_end,
+        district_id,
+
         SUM(total_ledger_credits)        AS total_ledger_credits,
         SUM(external_credit_inflows)     AS external_credit_inflows,
         SUM(total_ledger_debits)         AS total_ledger_debits,
@@ -24,45 +26,58 @@ base AS (
         MEDIAN(month_end_balance)
             FILTER (WHERE balance_known_as_of_month_end) AS median_observed_month_end_balance
     FROM core.fct_account_monthly_snapshot
-    GROUP BY month_end
+    GROUP BY month_end, district_id
 ),
 
 new_accounts AS (
     SELECT
         last_day(DATE_TRUNC('month', opened_date)) AS month_end,
+        district_id,
         COUNT(*) AS newly_opened_accounts
     FROM core.dim_account
-    GROUP BY last_day(DATE_TRUNC('month', opened_date))
+    GROUP BY last_day(DATE_TRUNC('month', opened_date)), district_id
 ),
 
 new_loans AS (
     SELECT
-        last_day(DATE_TRUNC('month', origination_date)) AS month_end,
-        SUM(loan_amount) AS loan_principal_originated
-    FROM core.fct_loans
-    GROUP BY last_day(DATE_TRUNC('month', origination_date))
+        last_day(DATE_TRUNC('month', l.origination_date)) AS month_end,
+        a.district_id,
+        SUM(l.loan_amount) AS loan_principal_originated
+    FROM core.fct_loans l
+    JOIN core.dim_account a
+        ON l.account_key = a.account_id
+    GROUP BY last_day(DATE_TRUNC('month', l.origination_date)), a.district_id
 ),
 
 growth AS (
     SELECT
         month_end,
+        district_id,
         CASE
-            WHEN LAG(positive_account_balances) OVER (ORDER BY month_end) IS NULL
-            OR LAG(positive_account_balances) OVER (ORDER BY month_end) = 0
+            WHEN LAG(positive_account_balances) OVER (
+                     PARTITION BY district_id ORDER BY month_end
+                 ) IS NULL
+              OR LAG(positive_account_balances) OVER (
+                     PARTITION BY district_id ORDER BY month_end
+                 ) = 0
                 THEN NULL
             ELSE
-                (positive_account_balances - LAG(positive_account_balances) OVER (ORDER BY month_end))
-                / LAG(positive_account_balances) OVER (ORDER BY month_end)
+                (positive_account_balances
+                 - LAG(positive_account_balances) OVER (
+                       PARTITION BY district_id ORDER BY month_end
+                   ))
+                / LAG(positive_account_balances) OVER (
+                      PARTITION BY district_id ORDER BY month_end
+                  )
         END AS positive_balance_mom_growth_pct
     FROM base
 ),
 
-
--- The top 10 percent
--- Eligible accounts only (known + positive balance)
+-- Top 10% concentration within each district-month
 eligible AS (
     SELECT
         month_end,
+        district_id,
         account_id,
         month_end_balance AS positive_balance
     FROM core.fct_account_monthly_snapshot
@@ -70,42 +85,50 @@ eligible AS (
       AND month_end_balance > 0
 ),
 
---  Rank them inside each month
 ranked AS (
     SELECT
         month_end,
+        district_id,
         account_id,
         positive_balance,
         ROW_NUMBER() OVER (
-            PARTITION BY month_end
+            PARTITION BY month_end, district_id
             ORDER BY positive_balance DESC, account_id
         ) AS rn,
-        COUNT(*) OVER (PARTITION BY month_end) AS eligible_count
+        COUNT(*) OVER (PARTITION BY month_end, district_id) AS eligible_count
     FROM eligible
 ),
 
---  Keep only the top 10% and calculate concentration
 concentration AS (
     SELECT
         month_end,
+        district_id,
         SUM(positive_balance)
-            FILTER (WHERE rn <= CEIL(eligible_count * 0.10))   -- top 10%
-            / SUM(positive_balance)                            -- all eligible
+            FILTER (WHERE rn <= CEIL(eligible_count * 0.10))
+            / SUM(positive_balance)
             AS top_10pct_positive_balance_concentration
     FROM ranked
-    GROUP BY month_end
+    GROUP BY month_end, district_id
 )
 
 SELECT
     b.*,
     (b.accounts_with_known_balance * 1.0 / b.total_accounts) * 100
         AS pct_accounts_with_known_balance,
-    COALESCE(n.newly_opened_accounts, 0) AS newly_opened_accounts,
-    COALESCE(l.loan_principal_originated, 0) AS loan_principal_originated,
+    COALESCE(n.newly_opened_accounts, 0)              AS newly_opened_accounts,
+    COALESCE(l.loan_principal_originated, 0)          AS loan_principal_originated,
     g.positive_balance_mom_growth_pct,
     c.top_10pct_positive_balance_concentration
 FROM base b
-LEFT JOIN new_accounts n ON b.month_end = n.month_end
-LEFT JOIN new_loans l    ON b.month_end = l.month_end
-LEFT JOIN growth g ON b.month_end = g.month_end
-LEFT JOIN concentration c on b.month_end = c.month_end;
+LEFT JOIN new_accounts n
+    ON  b.month_end = n.month_end
+    AND b.district_id = n.district_id
+LEFT JOIN new_loans l
+    ON  b.month_end = l.month_end
+    AND b.district_id = l.district_id
+LEFT JOIN growth g
+    ON  b.month_end = g.month_end
+    AND b.district_id = g.district_id
+LEFT JOIN concentration c
+    ON  b.month_end = c.month_end
+    AND b.district_id = c.district_id;
