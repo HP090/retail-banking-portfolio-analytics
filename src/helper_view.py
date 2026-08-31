@@ -11,7 +11,7 @@ SQL_DIRECTORY = ROOT / "sql" / "marts"
 
 
 SQL_FILES = [
-    "mart_relationship_segments.sql",
+    "mart_loan_portfolio.sql",
 ]
 
 
