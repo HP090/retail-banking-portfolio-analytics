@@ -22,7 +22,7 @@ SELECT
     MEDIAN(payment_to_inflow_ratio) AS median_payment_to_inflow_ratio,
     COUNT(payment_to_inflow_ratio) AS payment_to_inflow_eligible_loans
 
-FROM marts.mart_loan_portfolio
+FROM mart.mart_loan_portfolio
 GROUP BY origination_year
 ORDER BY origination_year
 

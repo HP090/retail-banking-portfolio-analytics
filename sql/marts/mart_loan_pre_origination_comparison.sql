@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE marts.mart_loan_pre_origination_comparison AS
+CREATE OR REPLACE TABLE mart.mart_loan_pre_origination_comparison AS
 
 SELECT
     'inflow' AS band_type,
@@ -16,7 +16,7 @@ SELECT
         / NULLIF(COUNT(*) FILTER (WHERE status_code IN ('C', 'D')), 0)
         AS active_debt_rate,
     COUNT(payment_to_inflow_ratio) AS payment_to_inflow_eligible_loans
-FROM marts.mart_loan_portfolio
+FROM mart.mart_loan_portfolio
 GROUP BY pre_origination_inflow_band
 
 UNION ALL
@@ -35,7 +35,7 @@ SELECT
     COUNT(*) FILTER (WHERE status_code = 'D') * 1.0
         / NULLIF(COUNT(*) FILTER (WHERE status_code IN ('C', 'D')), 0),
     COUNT(payment_to_inflow_ratio)
-FROM marts.mart_loan_portfolio
+FROM mart.mart_loan_portfolio
 GROUP BY pre_origination_balance_band
 
 UNION ALL
@@ -54,6 +54,6 @@ SELECT
     COUNT(*) FILTER (WHERE status_code = 'D') * 1.0
         / NULLIF(COUNT(*) FILTER (WHERE status_code IN ('C', 'D')), 0),
     COUNT(payment_to_inflow_ratio)
-FROM marts.mart_loan_portfolio
+FROM mart.mart_loan_portfolio
 GROUP BY payment_to_inflow_band
 
