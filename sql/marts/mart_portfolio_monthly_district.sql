@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE marts.mart_portfolio_monthly_district AS
+CREATE OR REPLACE TABLE mart.mart_portfolio_monthly_district AS
 
 WITH
 base AS (

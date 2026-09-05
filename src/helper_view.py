@@ -7,11 +7,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 BASE_CONFIG_PATH = ROOT / "conf" / "base.yaml"
-SQL_DIRECTORY = ROOT / "sql" / "core"
+SQL_DIRECTORY = ROOT / "sql" / "marts"
 
 
 SQL_FILES = [
-    "fct_account_monthly_snapshot.sql",
+    "mart_account_review_watchlist.sql",
 ]
 
 
@@ -28,7 +28,7 @@ def main():
     connection = duckdb.connect(str(database_path))
 
     try:
-        connection.execute("CREATE SCHEMA IF NOT EXISTS core;")
+        connection.execute("CREATE SCHEMA IF NOT EXISTS mart;")
 
         for sql_filename in SQL_FILES:
             sql_path = SQL_DIRECTORY / sql_filename
