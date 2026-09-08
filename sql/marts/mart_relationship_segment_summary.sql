@@ -9,7 +9,7 @@ WITH totals AS (
 
 SELECT
     s.primary_segment,
-    s.district_id
+    s.district_id,
     COUNT(*) AS account_count,
     COUNT(*) * 1.0 / MAX(t.total_accounts) AS pct_of_accounts,
 

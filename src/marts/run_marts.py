@@ -4,14 +4,25 @@ import duckdb
 import yaml
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 BASE_CONFIG_PATH = ROOT / "conf" / "base.yaml"
 SQL_DIRECTORY = ROOT / "sql" / "marts"
 
 
 SQL_FILES = [
+    "mart_account_cohort_retention.sql",
+    "mart_account_review_watchlist.sql",
+    "mart_loan_portfolio.sql",
+    "mart_loan_pre_origination_comparison.sql",
+    "mart_loan_vintages.sql",
     "mart_monthly_forecast_input.sql",
+    "mart_monthly_inflow_forecast.sql",
+    "mart_portfolio_flow_composition.sql",
+    "mart_portfolio_monthly.sql",
+    "mart_portfolio_monthly_district.sql",
+    "mart_relationship_segment_summary.sql",
+    "mart_relationship_segments.sql"
 ]
 
 
